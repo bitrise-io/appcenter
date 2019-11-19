@@ -3,6 +3,7 @@ package appcenter
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"time"
 )
 
@@ -130,12 +131,15 @@ func (a App) UploadSymbol(filePath, build, version string, symbolType SymbolType
 	// send file upload request
 	var (
 		postURL  = fmt.Sprintf("%s/v0.1/apps/%s/%s/symbol_uploads", baseURL, a.owner, a.name)
-		postBody struct {
-			SymbolType     SymbolType `json:"symbol_type"`
-			ClientCallback string     `json:"client_callback"`
-			FileName       string     `json:"file_name"`
-			Build          string     `json:"build"`
-			Version        string     `json:"version"`
+		postBody = struct {
+			SymbolType SymbolType `json:"symbol_type"`
+			FileName   string     `json:"file_name,omitempty"`
+			Build      string     `json:"build,omitempty"`
+			Version    string     `json:"version,omitempty"`
+		}{
+			FileName: filepath.Base(filePath),
+			Build:    build,
+			Version:  version,
 		}
 		postResponse struct {
 			SymbolUploadID string    `json:"symbol_upload_id"`
