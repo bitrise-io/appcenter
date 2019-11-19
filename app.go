@@ -13,7 +13,7 @@ type App struct {
 	owner, name string
 }
 
-// NewRelease ...
+// NewRelease ... for more info: https://docs.microsoft.com/en-us/appcenter/distribution/uploading#uploading-using-the-apis
 func (a App) NewRelease(filePath string, opts ...ReleaseOptions) (Release, error) {
 	// send file upload request
 	var (

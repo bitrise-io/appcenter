@@ -89,6 +89,10 @@ func (c Client) uploadRequest(url string, files map[string]string) (int, error) 
 		if _, err = io.Copy(fw, f); err != nil {
 			return -1, err
 		}
+
+		if err := f.Close(); err != nil {
+			return -1, nil
+		}
 	}
 
 	if err := w.Close(); err != nil {
