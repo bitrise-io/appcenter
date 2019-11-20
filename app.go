@@ -3,8 +3,6 @@ package appcenter
 import (
 	"fmt"
 	"net/http"
-	"path/filepath"
-	"time"
 )
 
 // App ...
@@ -124,64 +122,4 @@ func (a App) Stores(name string) (Store, error) {
 	}
 
 	return getResponse, nil
-}
-
-// UploadSymbol - build and version is required for Android and optional for iOS
-func (a App) UploadSymbol(filePath, build, version string, symbolType SymbolType) error {
-	// send file upload request
-	var (
-		postURL  = fmt.Sprintf("%s/v0.1/apps/%s/%s/symbol_uploads", baseURL, a.owner, a.name)
-		postBody = struct {
-			SymbolType SymbolType `json:"symbol_type"`
-			FileName   string     `json:"file_name,omitempty"`
-			Build      string     `json:"build,omitempty"`
-			Version    string     `json:"version,omitempty"`
-		}{
-			FileName: filepath.Base(filePath),
-			Build:    build,
-			Version:  version,
-		}
-		postResponse struct {
-			SymbolUploadID string    `json:"symbol_upload_id"`
-			UploadURL      string    `json:"upload_url"`
-			ExpirationDate time.Time `json:"expiration_date"`
-		}
-	)
-
-	statusCode, err := a.client.jsonRequest(http.MethodPost, postURL, postBody, &postResponse)
-	if err != nil {
-		return err
-	}
-
-	if statusCode != http.StatusCreated {
-		return fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, postURL, postBody)
-	}
-
-	// upload file to {upload_url}
-	statusCode, err = a.client.uploadRequest(postResponse.UploadURL, map[string]string{"dsym": filePath})
-	if err != nil {
-		return err
-	}
-
-	if statusCode != http.StatusNoContent {
-		return fmt.Errorf("invalid status code: %d, url: %s", statusCode, postResponse.UploadURL)
-	}
-
-	var (
-		patchURL  = fmt.Sprintf("%s/v0.1/apps/%s/%s/symbol_uploads/%s", baseURL, a.owner, a.name, postResponse.SymbolUploadID)
-		patchBody = map[string]string{
-			"status": "committed",
-		}
-	)
-
-	statusCode, err = a.client.jsonRequest(http.MethodPatch, patchURL, patchBody, nil)
-	if err != nil {
-		return err
-	}
-
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("invalid status code: %d, url: %s", statusCode, patchURL)
-	}
-
-	return nil
 }
