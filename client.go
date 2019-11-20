@@ -14,8 +14,7 @@ import (
 )
 
 type roundTripper struct {
-	customHeaders map[string]string
-	token         string
+	token string
 }
 
 // RoundTrip ...
