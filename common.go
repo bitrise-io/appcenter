@@ -69,7 +69,7 @@ func (c Client) jsonRequest(method, url string, body interface{}, response inter
 	return resp.StatusCode, nil
 }
 
-func (c Client) uploadRequest(url string, files map[string]string) (int, error) {
+func (c Client) uploadForm(url string, files map[string]string) (int, error) {
 	var (
 		b bytes.Buffer
 		w = multipart.NewWriter(&b)
@@ -105,6 +105,31 @@ func (c Client) uploadRequest(url string, files map[string]string) (int, error) 
 	}
 
 	uploadReq.Header.Set("Content-Type", w.FormDataContentType())
+
+	resp, err := c.httpClient.Do(uploadReq)
+	if err != nil {
+		return -1, err
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	return resp.StatusCode, nil
+}
+
+func (c Client) uploadFile(url string, filePath string) (int, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return -1, err
+	}
+
+	defer func() { _ = f.Close() }()
+
+	uploadReq, err := http.NewRequest("PUT", url, f)
+	if err != nil {
+		return -1, err
+	}
+
+	uploadReq.Header.Set("x-ms-blob-type", "BlockBlob")
 
 	resp, err := c.httpClient.Do(uploadReq)
 	if err != nil {

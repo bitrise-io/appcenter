@@ -179,8 +179,6 @@ func (r Release) UploadSymbol(filePath string) error {
 		symbolType = SymbolTypeMapping
 	}
 
-	fileName := filepath.Base(filePath)
-
 	// send file upload request
 	var (
 		postURL  = fmt.Sprintf("%s/v0.1/apps/%s/%s/symbol_uploads", baseURL, r.app.owner, r.app.name)
@@ -190,7 +188,7 @@ func (r Release) UploadSymbol(filePath string) error {
 			Build      string     `json:"build,omitempty"`
 			Version    string     `json:"version,omitempty"`
 		}{
-			FileName:   fileName,
+			FileName:   filepath.Base(filePath),
 			Build:      r.ShortVersion,
 			Version:    r.Version,
 			SymbolType: symbolType,
@@ -212,15 +210,10 @@ func (r Release) UploadSymbol(filePath string) error {
 	}
 
 	// upload file to {upload_url}
-	origCustomHeaders := r.app.client.roundTripper.customHeaders
-	r.app.client.roundTripper.customHeaders = map[string]string{"x-ms-blob-type": "BlockBlob"}
-
-	statusCode, err = r.app.client.uploadRequest(postResponse.UploadURL, map[string]string{fileName: filePath})
+	statusCode, err = r.app.client.uploadFile(postResponse.UploadURL, filePath)
 	if err != nil {
 		return err
 	}
-
-	r.app.client.roundTripper.customHeaders = origCustomHeaders
 
 	if statusCode != http.StatusNoContent {
 		return fmt.Errorf("invalid status code: %d, url: %s", statusCode, postResponse.UploadURL)

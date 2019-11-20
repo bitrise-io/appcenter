@@ -37,7 +37,7 @@ func (a App) NewRelease(filePath string, opts ...ReleaseOptions) (Release, error
 	}
 
 	// upload file to {upload_url}
-	statusCode, err = a.client.uploadRequest(postResponse.UploadURL, map[string]string{"ipa": filePath})
+	statusCode, err = a.client.uploadForm(postResponse.UploadURL, map[string]string{"ipa": filePath})
 	if err != nil {
 		return Release{}, err
 	}
