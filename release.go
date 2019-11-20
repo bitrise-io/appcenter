@@ -3,7 +3,6 @@ package appcenter
 import (
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"time"
 )
 
@@ -188,7 +187,7 @@ func (r Release) UploadSymbol(filePath string) error {
 			Build      string     `json:"build,omitempty"`
 			Version    string     `json:"version,omitempty"`
 		}{
-			FileName:   filepath.Base(filePath),
+			FileName:   filePath,
 			Build:      r.ShortVersion,
 			Version:    r.Version,
 			SymbolType: symbolType,
