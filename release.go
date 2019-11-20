@@ -70,14 +70,18 @@ type Release struct {
 	IsExternalBuild bool   `json:"is_external_build"`
 }
 
-// AddStore ...
-func (r Release) AddStore(s Store) error {
+// AddGroup ...
+func (r Release) AddGroup(g Group, mandatoryUpdate, notifyTesters bool) error {
 	var (
-		postURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d/stores", baseURL, r.app.owner, r.app.name, r.ID)
+		postURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d/groups", baseURL, r.app.owner, r.app.name, r.ID)
 		postRequest = struct {
-			ID string `json:"id"`
+			ID              string `json:"id"`
+			MandatoryUpdate bool   `json:"mandatory_update"`
+			NotifyTesters   bool   `json:"notify_testers"`
 		}{
-			ID: s.ID,
+			ID:              g.ID,
+			MandatoryUpdate: mandatoryUpdate,
+			NotifyTesters:   notifyTesters,
 		}
 	)
 
@@ -93,18 +97,14 @@ func (r Release) AddStore(s Store) error {
 	return nil
 }
 
-// AddGroup ...
-func (r Release) AddGroup(g Group, mandatoryUpdate, notifyTesters bool) error {
+// AddStore ...
+func (r Release) AddStore(s Store) error {
 	var (
-		postURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d/groups", baseURL, r.app.owner, r.app.name, r.ID)
+		postURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d/stores", baseURL, r.app.owner, r.app.name, r.ID)
 		postRequest = struct {
-			ID              string `json:"id"`
-			MandatoryUpdate bool   `json:"mandatory_update"`
-			NotifyTesters   bool   `json:"notify_testers"`
+			ID string `json:"id"`
 		}{
-			ID:              g.ID,
-			MandatoryUpdate: mandatoryUpdate,
-			NotifyTesters:   notifyTesters,
+			ID: s.ID,
 		}
 	)
 
