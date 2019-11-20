@@ -70,29 +70,6 @@ type Release struct {
 	IsExternalBuild bool   `json:"is_external_build"`
 }
 
-// SetReleaseNote ...
-func (r Release) SetReleaseNote(releaseNote string) error {
-	var (
-		putURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d", baseURL, r.app.owner, r.app.name, r.ID)
-		putRequest = struct {
-			ReleaseNotes string `json:"release_notes,omitempty"`
-		}{
-			ReleaseNotes: releaseNote,
-		}
-	)
-
-	statusCode, err := r.app.client.jsonRequest(http.MethodPut, putURL, putRequest, nil)
-	if err != nil {
-		return err
-	}
-
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("invalid status code: %d, url: %s", statusCode, putURL)
-	}
-
-	return nil
-}
-
 // AddStore ...
 func (r Release) AddStore(s Store) error {
 	var (
@@ -165,6 +142,29 @@ func (r Release) AddTester(email string, mandatoryUpdate, notifyTesters bool) er
 
 	if statusCode != http.StatusCreated {
 		return fmt.Errorf("invalid status code: %d, url: %s", statusCode, postURL)
+	}
+
+	return nil
+}
+
+// SetReleaseNote ...
+func (r Release) SetReleaseNote(releaseNote string) error {
+	var (
+		putURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d", baseURL, r.app.owner, r.app.name, r.ID)
+		putRequest = struct {
+			ReleaseNotes string `json:"release_notes,omitempty"`
+		}{
+			ReleaseNotes: releaseNote,
+		}
+	)
+
+	statusCode, err := r.app.client.jsonRequest(http.MethodPut, putURL, putRequest, nil)
+	if err != nil {
+		return err
+	}
+
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("invalid status code: %d, url: %s", statusCode, putURL)
 	}
 
 	return nil
