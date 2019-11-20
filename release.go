@@ -205,7 +205,7 @@ func (r Release) UploadSymbol(filePath string) error {
 		return err
 	}
 
-	if statusCode != http.StatusCreated {
+	if statusCode != http.StatusOK {
 		return fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, postURL, postBody)
 	}
 
@@ -215,7 +215,7 @@ func (r Release) UploadSymbol(filePath string) error {
 		return err
 	}
 
-	if statusCode != http.StatusOK {
+	if statusCode != http.StatusNoContent {
 		return fmt.Errorf("invalid status code: %d, url: %s", statusCode, postResponse.UploadURL)
 	}
 
