@@ -92,3 +92,80 @@ func (r Release) SetReleaseNote(releaseNote string) error {
 
 	return nil
 }
+
+// AddStore ...
+func (r Release) AddStore(s Store) error {
+	var (
+		postURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d/stores", baseURL, r.app.owner, r.app.name, r.ID)
+		postRequest = struct {
+			ID string `json:"id"`
+		}{
+			ID: s.ID,
+		}
+	)
+
+	statusCode, err := r.app.client.jsonRequest(http.MethodPost, postURL, postRequest, nil)
+	if err != nil {
+		return err
+	}
+
+	if statusCode != http.StatusCreated {
+		return fmt.Errorf("invalid status code: %d, url: %s", statusCode, postURL)
+	}
+
+	return nil
+}
+
+// AddGroup ...
+func (r Release) AddGroup(g Group, mandatoryUpdate, notifyTesters bool) error {
+	var (
+		postURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d/groups", baseURL, r.app.owner, r.app.name, r.ID)
+		postRequest = struct {
+			ID              string `json:"id"`
+			MandatoryUpdate bool   `json:"mandatory_update"`
+			NotifyTesters   bool   `json:"notify_testers"`
+		}{
+			ID:              g.ID,
+			MandatoryUpdate: mandatoryUpdate,
+			NotifyTesters:   notifyTesters,
+		}
+	)
+
+	statusCode, err := r.app.client.jsonRequest(http.MethodPost, postURL, postRequest, nil)
+	if err != nil {
+		return err
+	}
+
+	if statusCode != http.StatusCreated {
+		return fmt.Errorf("invalid status code: %d, url: %s", statusCode, postURL)
+	}
+
+	return nil
+}
+
+// AddTester ...
+func (r Release) AddTester(email string, mandatoryUpdate, notifyTesters bool) error {
+	var (
+		postURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d/testers", baseURL, r.app.owner, r.app.name, r.ID)
+		postRequest = struct {
+			Email           string `json:"email"`
+			MandatoryUpdate bool   `json:"mandatory_update"`
+			NotifyTesters   bool   `json:"notify_testers"`
+		}{
+			Email:           email,
+			MandatoryUpdate: mandatoryUpdate,
+			NotifyTesters:   notifyTesters,
+		}
+	)
+
+	statusCode, err := r.app.client.jsonRequest(http.MethodPost, postURL, postRequest, nil)
+	if err != nil {
+		return err
+	}
+
+	if statusCode != http.StatusCreated {
+		return fmt.Errorf("invalid status code: %d, url: %s", statusCode, postURL)
+	}
+
+	return nil
+}
