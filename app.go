@@ -15,7 +15,7 @@ type App struct {
 func (a App) NewRelease(filePath string, opts ...ReleaseOptions) (Release, error) {
 	// send file upload request
 	var (
-		postURL      = fmt.Sprintf("%s/v0.1/apps/%s/%s/release_uploads", baseURL, a.owner, a.name)
+		postURL      = fmt.Sprintf("%s/v0.1/apps/%s/%s/uploads/releases", baseURL, a.owner, a.name)
 		postBody     interface{}
 		postResponse struct {
 			UploadID  string `json:"upload_id"`
@@ -47,7 +47,7 @@ func (a App) NewRelease(filePath string, opts ...ReleaseOptions) (Release, error
 	}
 
 	var (
-		patchURL  = fmt.Sprintf("%s/v0.1/apps/%s/%s/release_uploads/%s", baseURL, a.owner, a.name, postResponse.UploadID)
+		patchURL  = fmt.Sprintf("%s/v0.1/apps/%s/%s/uploads/releases/%s", baseURL, a.owner, a.name, postResponse.UploadID)
 		patchBody = map[string]string{
 			"status": "committed",
 		}
