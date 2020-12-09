@@ -3,6 +3,9 @@ package appcenter
 import (
 	"fmt"
 	"net/http"
+	"strconv"
+
+	"github.com/bitrise-io/go-utils/command"
 )
 
 // App ...
@@ -11,68 +14,46 @@ type App struct {
 	owner, name string
 }
 
+// ExecuteCommand ...
+func ExecuteCommand(stringCommand string, args ...string) (string, error) {
+	cmd := command.New(stringCommand, args...)
+	out, err := cmd.RunAndReturnTrimmedCombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("%s failed: %s", cmd.PrintableCommandArgs(), out)
+	}
+	return out, nil
+}
+
 // NewRelease ... for more info: https://docs.microsoft.com/en-us/appcenter/distribution/uploading#uploading-using-the-apis
-func (a App) NewRelease(filePath string, opts ...ReleaseOptions) (Release, error) {
-	// send file upload request
+func (a App) NewRelease(filePath string, opts ReleaseOptions) (Release, error) {
+	//set the firt group of the app (the CLI not able to set multiple groups)
+	appName := a.owner + "/" + a.name
+	commandArgs := []string{"distribute", "release", "--app", appName, "-f", filePath, "-g", opts.GroupNames[0]}
+
+	if len(opts.BuildNumber) != 0 {
+		commandArgs = append(commandArgs, "--build-number")
+		commandArgs = append(commandArgs, opts.BuildNumber)
+	}
+
+	if len(opts.BuildVersion) != 0 {
+		commandArgs = append(commandArgs, "--build-version")
+		commandArgs = append(commandArgs, opts.BuildVersion)
+	}
+
+	str, err := ExecuteCommand("appcenter", commandArgs...)
+	if err != nil {
+		return Release{}, fmt.Errorf("Failed to create AppCenter release: %s", str)
+	}
+
+	fmt.Println(str)
+
+	//fetch releases and find the latest
 	var (
-		postURL      = fmt.Sprintf("%s/v0.1/apps/%s/%s/release_uploads", baseURL, a.owner, a.name)
-		postBody     interface{}
-		postResponse struct {
-			UploadID  string `json:"upload_id"`
-			UploadURL string `json:"upload_url"`
-		}
+		getURL      = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases", baseURL, a.owner, a.name)
+		getResponse []Release
 	)
 
-	if len(opts) > 0 {
-		postBody = &opts[0]
-	}
-
-	statusCode, err := a.client.jsonRequest(http.MethodPost, postURL, postBody, &postResponse)
-	if err != nil {
-		return Release{}, err
-	}
-
-	if statusCode != http.StatusCreated {
-		return Release{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, postURL, postBody)
-	}
-
-	// upload file to {upload_url}
-	statusCode, err = a.client.uploadForm(postResponse.UploadURL, map[string]string{"ipa": filePath})
-	if err != nil {
-		return Release{}, err
-	}
-
-	if statusCode != http.StatusNoContent {
-		return Release{}, fmt.Errorf("invalid status code: %d, url: %s", statusCode, postResponse.UploadURL)
-	}
-
-	var (
-		patchURL  = fmt.Sprintf("%s/v0.1/apps/%s/%s/release_uploads/%s", baseURL, a.owner, a.name, postResponse.UploadID)
-		patchBody = map[string]string{
-			"status": "committed",
-		}
-		patchResponse struct {
-			ReleaseID  string `json:"release_id"`
-			ReleaseURL string `json:"release_url"`
-		}
-	)
-
-	statusCode, err = a.client.jsonRequest(http.MethodPatch, patchURL, patchBody, &patchResponse)
-	if err != nil {
-		return Release{}, err
-	}
-
-	if statusCode != http.StatusOK {
-		return Release{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, patchURL, patchResponse)
-	}
-
-	// fetch release details
-	var (
-		getURL      = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%s", baseURL, a.owner, a.name, patchResponse.ReleaseID)
-		getResponse Release
-	)
-
-	statusCode, err = a.client.jsonRequest(http.MethodGet, getURL, nil, &getResponse)
+	statusCode, err := a.client.jsonRequest(http.MethodGet, getURL, nil, &getResponse)
 	if err != nil {
 		return Release{}, err
 	}
@@ -81,9 +62,40 @@ func (a App) NewRelease(filePath string, opts ...ReleaseOptions) (Release, error
 		return Release{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getURL, getResponse)
 	}
 
-	getResponse.app = a
+	latestReleaseID := getResponse[0].ID
 
-	return getResponse, nil
+	var (
+		releaseShowURL = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%s", baseURL, a.owner, a.name, strconv.Itoa(latestReleaseID))
+		release        Release
+	)
+
+	statusCode, err = a.client.jsonRequest(http.MethodGet, releaseShowURL, nil, &release)
+	if err != nil {
+		return Release{}, err
+	}
+
+	if statusCode != http.StatusOK {
+		return Release{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getURL, getResponse)
+	}
+
+	release.app = a
+
+	// set the groups on the app
+	if len(opts.GroupNames) > 1 {
+		for _, groupName := range opts.GroupNames[1:] {
+			if len(groupName) == 0 {
+				continue
+			}
+			group, err := a.Groups(groupName)
+			if err != nil {
+				return Release{}, err
+			}
+
+			release.AddGroup(group, opts.Mandatory, opts.NotifyTesters)
+		}
+	}
+
+	return release, nil
 }
 
 // Groups ...

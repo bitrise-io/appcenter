@@ -9,9 +9,11 @@ import (
 
 // ReleaseOptions ...
 type ReleaseOptions struct {
-	BuildVersion string `json:"build_version,omitempty"`
-	BuildNumber  string `json:"build_number,omitempty"`
-	ReleaseID    int    `json:"release_id,omitempty"`
+	BuildVersion  string
+	BuildNumber   string
+	GroupNames    []string
+	Mandatory     bool
+	NotifyTesters bool
 }
 
 // Release ...
