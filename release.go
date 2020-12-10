@@ -14,6 +14,7 @@ type ReleaseOptions struct {
 	GroupNames    []string
 	Mandatory     bool
 	NotifyTesters bool
+	FilePath      string
 }
 
 // Release ...

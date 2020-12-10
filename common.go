@@ -1,9 +1,5 @@
 package appcenter
 
-const (
-	baseURL = `https://api.appcenter.ms`
-)
-
 // Error ...
 type Error struct {
 	Code    string `json:"code"`

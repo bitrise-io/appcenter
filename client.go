@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"mime/multipart"
 	"net/http"
 	"net/http/httputil"
-	"os"
 	"strconv"
+)
+
+const (
+	baseURL = `https://api.appcenter.ms`
 )
 
 type roundTripper struct {
@@ -107,56 +109,6 @@ func (c Client) jsonRequest(method, url string, body interface{}, response inter
 	return resp.StatusCode, nil
 }
 
-func (c Client) uploadForm(url string, files map[string]string) (int, error) {
-	var (
-		b bytes.Buffer
-		w = multipart.NewWriter(&b)
-	)
-
-	for fileName, filePath := range files {
-		f, err := os.Open(filePath)
-		if err != nil {
-			return -1, err
-		}
-
-		fw, err := w.CreateFormFile(fileName, filePath)
-		if err != nil {
-			return -1, err
-		}
-
-		if _, err = io.Copy(fw, f); err != nil {
-			return -1, err
-		}
-
-		if err := f.Close(); err != nil {
-			return -1, nil
-		}
-	}
-
-	if err := w.Close(); err != nil {
-		return -1, err
-	}
-
-	uploadReq, err := http.NewRequest("POST", url, &b)
-	if err != nil {
-		return -1, err
-	}
-
-	uploadReq.Header.Set("Content-Type", w.FormDataContentType())
-
-	resp, err := c.httpClient.Do(uploadReq)
-	if err != nil {
-		return -1, err
-	}
-
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-		}
-	}()
-
-	return resp.StatusCode, nil
-}
-
 func (c Client) uploadFile(url string, filePath string) (int, error) {
 	fb, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -182,4 +134,83 @@ func (c Client) uploadFile(url string, filePath string) (int, error) {
 	}()
 
 	return resp.StatusCode, nil
+}
+
+// API ...
+type API struct {
+	Client Client
+}
+
+// GetLatestReleases ...
+func (api API) GetLatestReleases(app App) (Release, error) {
+	//fetch releases and find the latest
+	var (
+		getReleasesURL   = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases", baseURL, app.owner, app.name)
+		releasesResponse []Release
+	)
+
+	statusCode, err := api.Client.jsonRequest(http.MethodGet, getReleasesURL, nil, &releasesResponse)
+	if err != nil {
+		return Release{}, err
+	}
+
+	if statusCode != http.StatusOK {
+		return Release{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getReleasesURL, releasesResponse)
+	}
+
+	latestReleaseID := releasesResponse[0].ID
+
+	var (
+		releaseShowURL = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%s", baseURL, app.owner, app.name, strconv.Itoa(latestReleaseID))
+		release        Release
+	)
+
+	statusCode, err = api.Client.jsonRequest(http.MethodGet, releaseShowURL, nil, &release)
+	if err != nil {
+		return Release{}, err
+	}
+
+	if statusCode != http.StatusOK {
+		return Release{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, releaseShowURL, release)
+	}
+
+	return release, err
+}
+
+// GetGroupByName ...
+func (api API) GetGroupByName(groupName string, app App) (Group, error) {
+	var (
+		getURL      = fmt.Sprintf("%s/v0.1/apps/%s/%s/distribution_groups/%s", baseURL, app.owner, app.name, groupName)
+		getResponse Group
+	)
+
+	statusCode, err := api.Client.jsonRequest(http.MethodGet, getURL, nil, &getResponse)
+	if err != nil {
+		return Group{}, err
+	}
+
+	if statusCode != http.StatusOK {
+		return Group{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getURL, getResponse)
+	}
+
+	return getResponse, err
+}
+
+// GetStore ...
+func (api API) GetStore(storeName string, app App) (Store, error) {
+	var (
+		getURL      = fmt.Sprintf("%s/v0.1/apps/%s/%s/distribution_stores/%s", baseURL, app.owner, app.name, storeName)
+		getResponse Store
+	)
+
+	statusCode, err := api.Client.jsonRequest(http.MethodGet, getURL, nil, &getResponse)
+	if err != nil {
+		return Store{}, err
+	}
+
+	if statusCode != http.StatusOK {
+		return Store{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getURL, getResponse)
+	}
+
+	return getResponse, nil
 }
