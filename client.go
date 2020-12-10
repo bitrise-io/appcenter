@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strconv"
+
+	"github.com/bitrise-io/appcenter/model"
 )
 
 const (
@@ -178,38 +180,38 @@ func (api API) GetLatestReleases(app App) (Release, error) {
 }
 
 // GetGroupByName ...
-func (api API) GetGroupByName(groupName string, app App) (Group, error) {
+func (api API) GetGroupByName(groupName string, app App) (model.Group, error) {
 	var (
 		getURL      = fmt.Sprintf("%s/v0.1/apps/%s/%s/distribution_groups/%s", baseURL, app.owner, app.name, groupName)
-		getResponse Group
+		getResponse model.Group
 	)
 
 	statusCode, err := api.Client.jsonRequest(http.MethodGet, getURL, nil, &getResponse)
 	if err != nil {
-		return Group{}, err
+		return model.Group{}, err
 	}
 
 	if statusCode != http.StatusOK {
-		return Group{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getURL, getResponse)
+		return model.Group{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getURL, getResponse)
 	}
 
 	return getResponse, err
 }
 
 // GetStore ...
-func (api API) GetStore(storeName string, app App) (Store, error) {
+func (api API) GetStore(storeName string, app App) (model.Store, error) {
 	var (
 		getURL      = fmt.Sprintf("%s/v0.1/apps/%s/%s/distribution_stores/%s", baseURL, app.owner, app.name, storeName)
-		getResponse Store
+		getResponse model.Store
 	)
 
 	statusCode, err := api.Client.jsonRequest(http.MethodGet, getURL, nil, &getResponse)
 	if err != nil {
-		return Store{}, err
+		return model.Store{}, err
 	}
 
 	if statusCode != http.StatusOK {
-		return Store{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getURL, getResponse)
+		return model.Store{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getURL, getResponse)
 	}
 
 	return getResponse, nil

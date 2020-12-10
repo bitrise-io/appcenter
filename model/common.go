@@ -1,4 +1,4 @@
-package appcenter
+package model
 
 // Error ...
 type Error struct {

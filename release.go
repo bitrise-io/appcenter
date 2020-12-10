@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"path/filepath"
 	"time"
+
+	"github.com/bitrise-io/appcenter/model"
 )
 
 // ReleaseOptions ...
@@ -70,14 +72,14 @@ type Release struct {
 		CommitHash    string `json:"commit_hash"`
 		CommitMessage string `json:"commit_message"`
 	} `json:"build"`
-	Enabled         bool   `json:"enabled"`
-	Status          string `json:"status"`
-	IsExternalBuild bool   `json:"is_external_build"`
-	Error           Error  `json:"error"`
+	Enabled         bool        `json:"enabled"`
+	Status          string      `json:"status"`
+	IsExternalBuild bool        `json:"is_external_build"`
+	Error           model.Error `json:"error"`
 }
 
 // AddGroup ...
-func (r Release) AddGroup(g Group, mandatoryUpdate, notifyTesters bool) error {
+func (r Release) AddGroup(g model.Group, mandatoryUpdate, notifyTesters bool) error {
 	var (
 		postURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d/groups", baseURL, r.app.owner, r.app.name, r.ID)
 		postRequest = struct {
@@ -104,7 +106,7 @@ func (r Release) AddGroup(g Group, mandatoryUpdate, notifyTesters bool) error {
 }
 
 // AddStore ...
-func (r Release) AddStore(s Store) error {
+func (r Release) AddStore(s model.Store) error {
 	var (
 		postURL     = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%d/stores", baseURL, r.app.owner, r.app.name, r.ID)
 		postRequest = struct {
@@ -178,19 +180,19 @@ func (r Release) SetReleaseNote(releaseNote string) error {
 
 // UploadSymbol - build and version is required for Android and optional for iOS
 func (r Release) UploadSymbol(filePath string) error {
-	var symbolType = SymbolTypeDSYM
+	var symbolType = model.SymbolTypeDSYM
 	if r.AppOs == "Android" {
-		symbolType = SymbolTypeMapping
+		symbolType = model.SymbolTypeMapping
 	}
 
 	// send file upload request
 	var (
 		postURL  = fmt.Sprintf("%s/v0.1/apps/%s/%s/symbol_uploads", baseURL, r.app.owner, r.app.name)
 		postBody = struct {
-			SymbolType SymbolType `json:"symbol_type"`
-			FileName   string     `json:"file_name,omitempty"`
-			Build      string     `json:"build,omitempty"`
-			Version    string     `json:"version,omitempty"`
+			SymbolType model.SymbolType `json:"symbol_type"`
+			FileName   string           `json:"file_name,omitempty"`
+			Build      string           `json:"build,omitempty"`
+			Version    string           `json:"version,omitempty"`
 		}{
 			FileName:   filepath.Base(filePath),
 			Build:      r.Version,

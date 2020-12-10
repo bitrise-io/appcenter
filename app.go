@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/bitrise-io/appcenter/commander"
+	"github.com/bitrise-io/appcenter/model"
 )
 
 // App ...
@@ -74,14 +75,14 @@ func (a App) createCLICommandArgs(opts ReleaseOptions) []string {
 }
 
 // Groups ...
-func (a App) Groups(name string) (Group, error) {
+func (a App) Groups(name string) (model.Group, error) {
 	api := API{Client: a.client}
 
 	return api.GetGroupByName(name, a)
 }
 
 // Stores ...
-func (a App) Stores(name string) (Store, error) {
+func (a App) Stores(name string) (model.Store, error) {
 	api := API{Client: a.client}
 
 	return api.GetStore(name, a)
