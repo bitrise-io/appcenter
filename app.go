@@ -10,16 +10,26 @@ import (
 
 // AppAPI ...
 type AppAPI struct {
-	api             client.API
+	API             client.API
 	commandExecutor commander.CommandExecutor
+	ReleaseOptions  model.ReleaseOptions
+}
+
+// CreateApplicationAPI ...
+func CreateApplicationAPI(api client.API, releaseOptions model.ReleaseOptions) AppAPI {
+	return AppAPI{
+		API:             api,
+		ReleaseOptions:  releaseOptions,
+		commandExecutor: commander.CommandExecutor{},
+	}
 }
 
 // NewRelease ...
 // Uploads the artifact with the AppCenter CLI does the following:
 // 1) Uploads the artifact and sets the first given group as "default" group.
 // 2) Fetches the releases and gets the latest because it is the recent uploaded release.
-func (a AppAPI) NewRelease(opts model.ReleaseOptions) (model.Release, error) {
-	commandArgs := a.createCLICommandArgs(opts)
+func (a AppAPI) NewRelease() (model.Release, error) {
+	commandArgs := a.createCLICommandArgs(a.ReleaseOptions)
 	str, err := a.commandExecutor.ExecuteCommand("appcenter", commandArgs...)
 	if err != nil {
 		return model.Release{}, fmt.Errorf("Failed to create AppCenter release: %s", str)
@@ -27,7 +37,7 @@ func (a AppAPI) NewRelease(opts model.ReleaseOptions) (model.Release, error) {
 
 	fmt.Println(fmt.Sprintf("Command execution result: %s", str))
 
-	release, err := a.api.GetLatestReleases(opts.App)
+	release, err := a.API.GetLatestReleases(a.ReleaseOptions.App)
 	if err != nil {
 		return model.Release{}, err
 	}
@@ -53,11 +63,11 @@ func (a AppAPI) createCLICommandArgs(opts model.ReleaseOptions) []string {
 }
 
 // Groups ...
-func (a AppAPI) Groups(name string, app model.App) (model.Group, error) {
-	return a.api.GetGroupByName(name, app)
+func (a AppAPI) Groups(name string) (model.Group, error) {
+	return a.API.GetGroupByName(name, a.ReleaseOptions.App)
 }
 
 // Stores ...
-func (a AppAPI) Stores(name string, app model.App) (model.Store, error) {
-	return a.api.GetStore(name, app)
+func (a AppAPI) Stores(name string) (model.Store, error) {
+	return a.API.GetStore(name, a.ReleaseOptions.App)
 }

@@ -10,6 +10,13 @@ import (
 	"github.com/bitrise-io/appcenter/model"
 )
 
+// CreateAPIWithClientParams ...
+func CreateAPIWithClientParams(token string, debug bool) API {
+	return API{
+		Client: NewClient(token, debug),
+	}
+}
+
 // API ...
 type API struct {
 	Client Client
