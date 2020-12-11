@@ -3,13 +3,14 @@ package appcenter
 import (
 	"fmt"
 
+	"github.com/bitrise-io/appcenter/client"
 	"github.com/bitrise-io/appcenter/commander"
 	"github.com/bitrise-io/appcenter/model"
 )
 
 // AppAPI ...
 type AppAPI struct {
-	api             API
+	api             client.API
 	commandExecutor commander.CommandExecutor
 }
 
@@ -17,10 +18,7 @@ type AppAPI struct {
 // Uploads the artifact with the AppCenter CLI does the following:
 // 1) Uploads the artifact and sets the first given group as "default" group.
 // 2) Fetches the releases and gets the latest because it is the recent uploaded release.
-// 3) Fetches the lastest release full data.
-// 4) Sets the remaining groups on the release with the API. Because AppCenter CLI is not able to set the groups in one command.
 func (a AppAPI) NewRelease(opts model.ReleaseOptions) (model.Release, error) {
-	//upload the artifact with the AappCenter CLI
 	commandArgs := a.createCLICommandArgs(opts)
 	str, err := a.commandExecutor.ExecuteCommand("appcenter", commandArgs...)
 	if err != nil {
@@ -29,7 +27,6 @@ func (a AppAPI) NewRelease(opts model.ReleaseOptions) (model.Release, error) {
 
 	fmt.Println(fmt.Sprintf("Command execution result: %s", str))
 
-	//fetch releases and find the latest
 	release, err := a.api.GetLatestReleases(opts.App)
 	if err != nil {
 		return model.Release{}, err

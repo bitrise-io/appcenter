@@ -2,5 +2,6 @@ package model
 
 // App ...
 type App struct {
-	Owner, AppName string
+	Owner   string
+	AppName string
 }

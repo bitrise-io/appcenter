@@ -3,12 +3,13 @@ package appcenter
 import (
 	"strings"
 
+	"github.com/bitrise-io/appcenter/client"
 	"github.com/bitrise-io/appcenter/model"
 )
 
 // ReleaseAPI ...
 type ReleaseAPI struct {
-	api     API
+	api     client.API
 	release model.Release
 	opts    model.ReleaseOptions
 }
