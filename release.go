@@ -31,7 +31,10 @@ func (r ReleaseAPI) AddGroupsToRelease(groupNames []string) error {
 				return err
 			}
 
-			r.AddGroup(group)
+			err = r.AddGroup(group)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
