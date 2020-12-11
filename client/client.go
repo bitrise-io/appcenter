@@ -36,11 +36,6 @@ type Client struct {
 	debug      bool
 }
 
-// // Apps ...
-// func (c Client) Apps(owner, name string) App {
-// 	return App{client: c, owner: owner, name: name}
-// }
-
 // NewClient returns an AppCenter authenticated client
 func NewClient(token string, debug bool) Client {
 	return Client{
