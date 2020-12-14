@@ -11,7 +11,7 @@ import (
 // AppAPI ...
 type AppAPI struct {
 	API             client.API
-	commandExecutor commander.CommandExecutor
+	CommandExecutor commander.CommandExecutor
 	ReleaseOptions  model.ReleaseOptions
 }
 
@@ -20,7 +20,7 @@ func CreateApplicationAPI(api client.API, releaseOptions model.ReleaseOptions) A
 	return AppAPI{
 		API:             api,
 		ReleaseOptions:  releaseOptions,
-		commandExecutor: commander.CommandExecutor{},
+		CommandExecutor: commander.CommandExecutor{},
 	}
 }
 
@@ -30,7 +30,7 @@ func CreateApplicationAPI(api client.API, releaseOptions model.ReleaseOptions) A
 // 2) Fetches the releases and gets the latest because it is the recent uploaded release.
 func (a AppAPI) NewRelease() (model.Release, error) {
 	commandArgs := a.createCLICommandArgs(a.ReleaseOptions)
-	str, err := a.commandExecutor.ExecuteCommand("appcenter", commandArgs...)
+	str, err := a.CommandExecutor.ExecuteCommand("appcenter", commandArgs...)
 	if err != nil {
 		return model.Release{}, fmt.Errorf("Failed to create AppCenter release: %s", str)
 	}
