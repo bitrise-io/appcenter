@@ -13,14 +13,16 @@ type AppAPI struct {
 	API             client.API
 	CommandExecutor commander.CommandExecutor
 	ReleaseOptions  model.ReleaseOptions
+	CLIParams       model.CLIParams
 }
 
 // CreateApplicationAPI ...
-func CreateApplicationAPI(api client.API, releaseOptions model.ReleaseOptions) AppAPI {
+func CreateApplicationAPI(api client.API, releaseOptions model.ReleaseOptions, cliParams model.CLIParams) AppAPI {
 	return AppAPI{
 		API:             api,
 		ReleaseOptions:  releaseOptions,
 		CommandExecutor: commander.CommandExecutor{},
+		CLIParams:       cliParams,
 	}
 }
 
@@ -29,7 +31,7 @@ func CreateApplicationAPI(api client.API, releaseOptions model.ReleaseOptions) A
 // 1) Uploads the artifact and sets the first given group as "default" group.
 // 2) Fetches the releases and gets the latest because it is the recent uploaded release.
 func (a AppAPI) NewRelease() (model.Release, error) {
-	commandArgs := a.createCLICommandArgs(a.ReleaseOptions)
+	commandArgs := a.createCLICommandArgs(a.ReleaseOptions, a.CLIParams)
 	str, err := a.CommandExecutor.ExecuteCommand("appcenter", commandArgs...)
 	if err != nil {
 		return model.Release{}, fmt.Errorf("Failed to create AppCenter release: %s", str)
@@ -45,9 +47,16 @@ func (a AppAPI) NewRelease() (model.Release, error) {
 	return release, nil
 }
 
-func (a AppAPI) createCLICommandArgs(opts model.ReleaseOptions) []string {
+func (a AppAPI) createCLICommandArgs(opts model.ReleaseOptions, cliParams model.CLIParams) []string {
 	appName := opts.App.Owner + "/" + opts.App.AppName
-	commandArgs := []string{"distribute", "release", "-a", appName, "-f", opts.FilePath, "-g", opts.GroupNames[0]}
+	commandArgs := []string{
+		"distribute",
+		"release",
+		"-a", appName,
+		"-f", opts.FilePath,
+		"-g", opts.GroupNames[0],
+		"--token", cliParams.APIToken,
+	}
 
 	if len(opts.BuildNumber) != 0 {
 		commandArgs = append(commandArgs, "--build-number")
