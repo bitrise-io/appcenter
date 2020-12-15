@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/bitrise-io/appcenter/util"
@@ -13,16 +14,24 @@ import (
 	"github.com/bitrise-io/appcenter/model"
 )
 
-// CreateAPIWithClientParams ...
-func CreateAPIWithClientParams(token string, debug bool) API {
-	return API{
-		Client: NewClient(token, debug),
-	}
+type fileAssetResponse struct {
+	ReleaseID       string `json:"id"`
+	PackageAssetID  string `json:"package_asset_id"`
+	Token           string `json:"token"`
+	UploadDomain    string `json:"upload_domain"`
+	URLEncodedToken string `json:"url_encoded_token"`
 }
 
 // API ...
 type API struct {
 	Client Client
+}
+
+// CreateAPIWithClientParams ...
+func CreateAPIWithClientParams(token string, debug bool) API {
+	return API{
+		Client: NewClient(token, debug),
+	}
 }
 
 // GetAppReleaseDetails ...
@@ -286,16 +295,10 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 			baseURL,
 			opts.App.Owner,
 			opts.App.AppName)
-		fileAssetsResponse struct {
-			ReleaseID       string `json:"id"`
-			PackageAssetID  string `json:"package_asset_id"`
-			Token           string `json:"token"`
-			UploadDomain    string `json:"upload_domain"`
-			URLEncodedToken string `json:"url_encoded_token"`
-		}
+		assetResponse fileAssetResponse
 	)
 
-	statusCode, err := api.Client.jsonRequest(http.MethodPost, assetsURL, nil, &fileAssetsResponse)
+	statusCode, err := api.Client.jsonRequest(http.MethodPost, assetsURL, nil, &assetResponse)
 	if err != nil {
 		return -1, err
 	}
@@ -305,8 +308,8 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 	}
 
 	fmt.Println("")
-	fmt.Println(fmt.Sprintf("Asset release ID: %s", fileAssetsResponse.ReleaseID))
-	fmt.Println(fmt.Sprintf("File asset ID: %s", fileAssetsResponse.PackageAssetID))
+	fmt.Println(fmt.Sprintf("Asset release ID: %s", assetResponse.ReleaseID))
+	fmt.Println(fmt.Sprintf("File asset ID: %s", assetResponse.PackageAssetID))
 
 	file := util.LocalFile{FilePath: opts.FilePath}
 	err = file.OpenFile()
@@ -324,11 +327,11 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 
 	var (
 		metadataURL = fmt.Sprintf("%s/upload/set_metadata/%s?file_name=%s&file_size=%s&token=%s",
-			fileAssetsResponse.UploadDomain,
-			fileAssetsResponse.PackageAssetID,
+			assetResponse.UploadDomain,
+			assetResponse.PackageAssetID,
 			fileName,
 			strconv.Itoa(fileSize),
-			fileAssetsResponse.URLEncodedToken)
+			assetResponse.URLEncodedToken)
 		metadataResponse struct {
 			ID             string `json:"id"`
 			ChunkSize      int    `json:"chunk_size"`
@@ -343,7 +346,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 	}
 
 	if statusCode != http.StatusOK {
-		return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+		return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, metadataURL)
 	}
 
 	fmt.Println("")
@@ -356,36 +359,9 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 
 	fileChunks := file.MakeChunks(metadataResponse.ChunkSize)
 
-	for idx, chunkID := range metadataResponse.ChunkList {
-		chunk := fileChunks[idx]
-		fmt.Println(fmt.Sprintf("Chunk ID: %d, chunk size: %d \t\t", chunkID, len(chunk)))
-
-		var (
-			chunkUploadURL = fmt.Sprintf("%s/upload/upload_chunk/%s?block_number=%s&token=%s",
-				fileAssetsResponse.UploadDomain,
-				fileAssetsResponse.PackageAssetID,
-				strconv.Itoa(chunkID),
-				fileAssetsResponse.URLEncodedToken)
-			chunkUploadResponse struct {
-				Error     bool   `json:"error"`
-				ErrorCode string `json:"error_code"`
-			}
-		)
-
-		statusCode, err = api.Client.jsonRequest(http.MethodPost, chunkUploadURL, chunk, &chunkUploadResponse)
-		if err != nil {
-			return -1, err
-		}
-		if chunkUploadResponse.Error {
-			return -1,
-				fmt.Errorf("failed to upload chunk, chunk id: %d, error code: %s",
-					chunkID,
-					chunkUploadResponse.ErrorCode)
-		}
-
-		if statusCode != http.StatusOK {
-			return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
-		}
+	err = api.uploadChunksParallelly(fileChunks, metadataResponse.ChunkList, assetResponse)
+	if err != nil {
+		return -1, err
 	}
 
 	fmt.Println("")
@@ -393,9 +369,9 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 
 	var (
 		uploadFinishedURL = fmt.Sprintf("%s/upload/finished/%s?token=%s",
-			fileAssetsResponse.UploadDomain,
-			fileAssetsResponse.PackageAssetID,
-			fileAssetsResponse.URLEncodedToken)
+			assetResponse.UploadDomain,
+			assetResponse.PackageAssetID,
+			assetResponse.URLEncodedToken)
 		finishedResponse interface{}
 	)
 
@@ -405,7 +381,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 	}
 
 	if statusCode != http.StatusOK {
-		return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+		return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, uploadFinishedURL)
 	}
 
 	fmt.Println("")
@@ -418,7 +394,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 			baseURL,
 			opts.App.Owner,
 			opts.App.AppName,
-			fileAssetsResponse.ReleaseID)
+			assetResponse.ReleaseID)
 		releaseBody = struct {
 			UploadStatus string `json:"upload_status"`
 		}{
@@ -438,7 +414,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 	}
 
 	if statusCode != http.StatusOK {
-		return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+		return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, releasePatchURL)
 	}
 
 	fmt.Println("")
@@ -458,7 +434,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 				baseURL,
 				opts.App.Owner,
 				opts.App.AppName,
-				fileAssetsResponse.ReleaseID)
+				assetResponse.ReleaseID)
 			getResponse struct {
 				ID                string `json:"id"`
 				ReleaseDistinctID int    `json:"release_distinct_id,omitempty"`
@@ -472,7 +448,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 		}
 
 		if statusCode != http.StatusOK {
-			return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+			return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, getURL)
 		}
 
 		uploadStatus = getResponse.UploadStatus
@@ -493,6 +469,57 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 	fmt.Println(fmt.Sprintf("Release created with ID: %d", releaseDistinctID))
 
 	return releaseDistinctID, nil
+}
+
+func (api API) uploadChunksParallelly(fileChunks [][]byte, chunkIDs []int, assetResponse fileAssetResponse) (retErr error) {
+	var wg sync.WaitGroup
+	wg.Add(len(fileChunks))
+
+	for idx, chunkID := range chunkIDs {
+		chunk := fileChunks[idx]
+
+		go func(chunk []byte, ID int) {
+			defer wg.Done()
+
+			fmt.Println(fmt.Sprintf("Uploading chunk with ID: %d, size: %d", ID, len(chunk)))
+
+			var (
+				chunkUploadURL = fmt.Sprintf("%s/upload/upload_chunk/%s?block_number=%s&token=%s",
+					assetResponse.UploadDomain,
+					assetResponse.PackageAssetID,
+					strconv.Itoa(ID),
+					assetResponse.URLEncodedToken)
+				chunkUploadResponse struct {
+					Error     bool   `json:"error"`
+					ErrorCode string `json:"error_code"`
+				}
+			)
+
+			statusCode, err := api.Client.jsonRequest(http.MethodPost, chunkUploadURL, chunk, &chunkUploadResponse)
+			if err != nil {
+				retErr = err
+
+				return
+			}
+			if chunkUploadResponse.Error {
+				retErr = fmt.Errorf("failed to upload chunk, chunk id: %d, error code: %s",
+					ID,
+					chunkUploadResponse.ErrorCode)
+				return
+			}
+
+			if statusCode != http.StatusOK {
+				retErr = fmt.Errorf("invalid status code: %d, url: %s", statusCode, chunkUploadURL)
+				return
+			}
+
+			fmt.Println(fmt.Sprintf("Uploading finished, ID: %d", ID))
+		}(chunk, chunkID)
+	}
+
+	wg.Wait()
+
+	return
 }
 
 func uploadIsReadyForDeploy(status string) bool {
