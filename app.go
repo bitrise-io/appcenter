@@ -4,23 +4,20 @@ import (
 	"fmt"
 
 	"github.com/bitrise-io/appcenter/client"
-	"github.com/bitrise-io/appcenter/commander"
 	"github.com/bitrise-io/appcenter/model"
 )
 
 // AppAPI ...
 type AppAPI struct {
-	API             client.API
-	CommandExecutor commander.CommandExecutor
-	ReleaseOptions  model.ReleaseOptions
+	API            client.API
+	ReleaseOptions model.ReleaseOptions
 }
 
 // CreateApplicationAPI ...
 func CreateApplicationAPI(api client.API, releaseOptions model.ReleaseOptions) AppAPI {
 	return AppAPI{
-		API:             api,
-		ReleaseOptions:  releaseOptions,
-		CommandExecutor: commander.CommandExecutor{},
+		API:            api,
+		ReleaseOptions: releaseOptions,
 	}
 }
 

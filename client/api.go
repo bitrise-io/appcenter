@@ -458,7 +458,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 		} else {
 			attempts++
 
-			sleepDuration := rand.Intn(5) + 9
+			sleepDuration := generateRandomIntBetweenRange(5, 10)
 			fmt.Println(fmt.Sprintf("Waiting for %d second(s), current status: %s", sleepDuration, uploadStatus))
 
 			time.Sleep(time.Duration(sleepDuration) * time.Second)
@@ -520,6 +520,11 @@ func (api API) uploadChunksParallelly(fileChunks [][]byte, chunkIDs []int, asset
 	wg.Wait()
 
 	return
+}
+
+func generateRandomIntBetweenRange(min, max int) int {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Intn(max-min) + min
 }
 
 func uploadIsReadyForDeploy(status string) bool {
