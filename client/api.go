@@ -459,7 +459,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 			attempts++
 
 			sleepDuration := rand.Intn(5) + 9
-			fmt.Println(fmt.Sprintf("Waiting for %d second(s), status: %s", sleepDuration, uploadStatus))
+			fmt.Println(fmt.Sprintf("Waiting for %d second(s), current status: %s", sleepDuration, uploadStatus))
 
 			time.Sleep(time.Duration(sleepDuration) * time.Second)
 		}
