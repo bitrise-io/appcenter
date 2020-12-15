@@ -1,8 +1,6 @@
 package appcenter
 
 import (
-	"fmt"
-
 	"github.com/bitrise-io/appcenter/client"
 	"github.com/bitrise-io/appcenter/commander"
 	"github.com/bitrise-io/appcenter/model"
@@ -31,20 +29,22 @@ func CreateApplicationAPI(api client.API, releaseOptions model.ReleaseOptions, c
 // 1) Uploads the artifact and sets the first given group as "default" group.
 // 2) Fetches the releases and gets the latest because it is the recent uploaded release.
 func (a AppAPI) NewRelease() (model.Release, error) {
-	commandArgs := a.createCLICommandArgs(a.ReleaseOptions, a.CLIParams)
-	str, err := a.CommandExecutor.ExecuteCommand("appcenter", commandArgs...)
-	if err != nil {
-		return model.Release{}, fmt.Errorf("Failed to create AppCenter release: %s", str)
-	}
+	// commandArgs := a.createCLICommandArgs(a.ReleaseOptions, a.CLIParams)
+	// str, err := a.CommandExecutor.ExecuteCommand("appcenter", commandArgs...)
+	// if err != nil {
+	// 	return model.Release{}, fmt.Errorf("Failed to create AppCenter release: %s", str)
+	// }
 
-	fmt.Println(fmt.Sprintf("Command execution result: %s", str))
+	// fmt.Println(fmt.Sprintf("Command execution result: %s", str))
 
-	release, err := a.API.GetLatestReleases(a.ReleaseOptions.App)
-	if err != nil {
-		return model.Release{}, err
-	}
+	// release, err := a.API.GetLatestReleases(a.ReleaseOptions.App)
+	// if err != nil {
+	// 	return model.Release{}, err
+	// }
 
-	return release, nil
+	release, err := a.API.CreateRelease(a.ReleaseOptions)
+
+	return release, err
 }
 
 func (a AppAPI) createCLICommandArgs(opts model.ReleaseOptions, cliParams model.CLIParams) []string {

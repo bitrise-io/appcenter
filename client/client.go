@@ -48,18 +48,15 @@ func NewClient(token string, debug bool) Client {
 	}
 }
 
-func (c Client) jsonRequest(method, url string, body interface{}, response interface{}) (int, error) {
+func (c Client) jsonRequest(method, url string, body []byte, response interface{}) (int, error) {
 	var reader io.Reader
 
 	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			return -1, err
-		}
-		reader = bytes.NewReader(b)
+		reader = bytes.NewReader(body)
 	}
 
 	req, err := http.NewRequest(method, url, reader)
+
 	if err != nil {
 		return -1, err
 	}
@@ -102,6 +99,16 @@ func (c Client) jsonRequest(method, url string, body interface{}, response inter
 	}
 
 	return resp.StatusCode, nil
+}
+
+// MarshallContent ...
+func (c Client) MarshallContent(content interface{}) ([]byte, error) {
+	b, err := json.Marshal(content)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return b, err
 }
 
 func (c Client) uploadFile(url string, filePath string) (int, error) {

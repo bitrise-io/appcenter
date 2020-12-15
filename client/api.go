@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/bitrise-io/appcenter/util"
+
 	"github.com/bitrise-io/appcenter/model"
 )
 
@@ -22,31 +24,15 @@ type API struct {
 	Client Client
 }
 
-// GetLatestReleases ...
-func (api API) GetLatestReleases(app model.App) (model.Release, error) {
+// GetReleaseOnAppByID ...
+func (api API) GetReleaseOnAppByID(app model.App, releaseID int) (model.Release, error) {
 	//fetch releases and find the latest
 	var (
-		getReleasesURL   = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases", baseURL, app.Owner, app.AppName)
-		releasesResponse []model.Release
-	)
-
-	statusCode, err := api.Client.jsonRequest(http.MethodGet, getReleasesURL, nil, &releasesResponse)
-	if err != nil {
-		return model.Release{}, err
-	}
-
-	if statusCode != http.StatusOK {
-		return model.Release{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getReleasesURL, releasesResponse)
-	}
-
-	latestReleaseID := releasesResponse[0].ID
-
-	var (
-		releaseShowURL = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%s", baseURL, app.Owner, app.AppName, strconv.Itoa(latestReleaseID))
+		releaseShowURL = fmt.Sprintf("%s/v0.1/apps/%s/%s/releases/%s", baseURL, app.Owner, app.AppName, strconv.Itoa(releaseID))
 		release        model.Release
 	)
 
-	statusCode, err = api.Client.jsonRequest(http.MethodGet, releaseShowURL, nil, &release)
+	statusCode, err := api.Client.jsonRequest(http.MethodGet, releaseShowURL, nil, &release)
 	if err != nil {
 		return model.Release{}, err
 	}
@@ -111,7 +97,12 @@ func (api API) AddReleaseToGroup(g model.Group, releaseID int, opts model.Releas
 		}
 	)
 
-	statusCode, err := api.Client.jsonRequest(http.MethodPost, postURL, postRequest, nil)
+	body, err := api.Client.MarshallContent(postRequest)
+	if err != nil {
+		return err
+	}
+
+	statusCode, err := api.Client.jsonRequest(http.MethodPost, postURL, body, nil)
 	if err != nil {
 		return err
 	}
@@ -134,7 +125,12 @@ func (api API) AddReleaseToStore(s model.Store, releaseID int, opts model.Releas
 		}
 	)
 
-	statusCode, err := api.Client.jsonRequest(http.MethodPost, postURL, postRequest, nil)
+	body, err := api.Client.MarshallContent(postRequest)
+	if err != nil {
+		return err
+	}
+
+	statusCode, err := api.Client.jsonRequest(http.MethodPost, postURL, body, nil)
 	if err != nil {
 		return err
 	}
@@ -161,7 +157,12 @@ func (api API) AddTesterToRelease(email string, releaseID int, opts model.Releas
 		}
 	)
 
-	statusCode, err := api.Client.jsonRequest(http.MethodPost, postURL, postRequest, nil)
+	body, err := api.Client.MarshallContent(postRequest)
+	if err != nil {
+		return err
+	}
+
+	statusCode, err := api.Client.jsonRequest(http.MethodPost, postURL, body, nil)
 	if err != nil {
 		return err
 	}
@@ -184,7 +185,12 @@ func (api API) SetReleaseNoteOnRelease(releaseNote string, releaseID int, opts m
 		}
 	)
 
-	statusCode, err := api.Client.jsonRequest(http.MethodPut, putURL, putRequest, nil)
+	body, err := api.Client.MarshallContent(putRequest)
+	if err != nil {
+		return err
+	}
+
+	statusCode, err := api.Client.jsonRequest(http.MethodPut, putURL, body, nil)
 	if err != nil {
 		return err
 	}
@@ -224,7 +230,12 @@ func (api API) UploadSymbolToRelease(filePath string, release model.Release, opt
 		}
 	)
 
-	statusCode, err := api.Client.jsonRequest(http.MethodPost, postURL, postBody, &postResponse)
+	body, err := api.Client.MarshallContent(postBody)
+	if err != nil {
+		return err
+	}
+
+	statusCode, err := api.Client.jsonRequest(http.MethodPost, postURL, body, &postResponse)
 	if err != nil {
 		return err
 	}
@@ -250,7 +261,12 @@ func (api API) UploadSymbolToRelease(filePath string, release model.Release, opt
 		}
 	)
 
-	statusCode, err = api.Client.jsonRequest(http.MethodPatch, patchURL, patchBody, nil)
+	body, err = api.Client.MarshallContent(patchBody)
+	if err != nil {
+		return err
+	}
+
+	statusCode, err = api.Client.jsonRequest(http.MethodPatch, patchURL, body, nil)
 	if err != nil {
 		return err
 	}
@@ -260,4 +276,189 @@ func (api API) UploadSymbolToRelease(filePath string, release model.Release, opt
 	}
 
 	return nil
+}
+
+// CreateRelease ...
+func (api API) CreateRelease(opts model.ReleaseOptions) (model.Release, error) {
+	var (
+		assetsURL = fmt.Sprintf("%s/v0.1/apps/%s/%s/uploads/releases",
+			baseURL,
+			opts.App.Owner,
+			opts.App.AppName)
+		fileAssetsResponse struct {
+			ReleaseID       string `json:"id"`
+			PackageAssetID  string `json:"package_asset_id"`
+			Token           string `json:"token"`
+			UploadDomain    string `json:"upload_domain"`
+			URLEncodedToken string `json:"url_encoded_token"`
+		}
+	)
+
+	statusCode, err := api.Client.jsonRequest(http.MethodPost, assetsURL, nil, &fileAssetsResponse)
+	if err != nil {
+		return model.Release{}, err
+	}
+
+	if statusCode != http.StatusCreated {
+		return model.Release{}, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+	}
+
+	fmt.Println("File assets response:")
+	fmt.Println(fileAssetsResponse)
+
+	file := util.LocalFile{FilePath: opts.FilePath}
+	err = file.OpenFile()
+	if err != nil {
+		return model.Release{}, err
+	}
+
+	fileName := file.FileName()
+	fileSize := file.FileSize()
+
+	fmt.Println("Uploading file with metadata:")
+	fmt.Println(fmt.Sprintf("- File name: %s", fileName))
+	fmt.Println(fmt.Sprintf("- File size: %s", strconv.Itoa(fileSize)))
+
+	var (
+		metadataURL = fmt.Sprintf("%s/upload/set_metadata/%s?file_name=%s&file_size=%s&token=%s",
+			fileAssetsResponse.UploadDomain,
+			fileAssetsResponse.PackageAssetID,
+			fileName,
+			strconv.Itoa(fileSize),
+			fileAssetsResponse.URLEncodedToken)
+		metadataResponse struct {
+			ID             string `json:"id"`
+			ChunkSize      int    `json:"chunk_size"`
+			ChunkList      []int  `json:"chunk_list"`
+			BlobPartitions int    `json:"blob_partitions"`
+		}
+	)
+
+	statusCode, err = api.Client.jsonRequest(http.MethodPost, metadataURL, nil, &metadataResponse)
+	if err != nil {
+		return model.Release{}, err
+	}
+
+	if statusCode != http.StatusOK {
+		return model.Release{}, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+	}
+
+	fmt.Println("File assets response:")
+	fmt.Println(metadataResponse)
+
+	fmt.Println("Uploading chunks ...")
+
+	fileChunks := file.MakeChunks(metadataResponse.ChunkSize)
+
+	for idx, chunkID := range metadataResponse.ChunkList {
+		chunk := fileChunks[idx]
+		fmt.Println(fmt.Sprintf("Chunk ID: %d, chunk size: %d", chunkID, len(chunk)))
+
+		var (
+			chunkUploadURL = fmt.Sprintf("%s/upload/upload_chunk/%s?block_number=%s&token=%s",
+				fileAssetsResponse.UploadDomain,
+				fileAssetsResponse.PackageAssetID,
+				strconv.Itoa(chunkID),
+				fileAssetsResponse.URLEncodedToken)
+			chunkUploadResponse interface{}
+		)
+
+		statusCode, err = api.Client.jsonRequest(http.MethodPost, chunkUploadURL, chunk, &chunkUploadResponse)
+		if err != nil {
+			return model.Release{}, err
+		}
+
+		if statusCode != http.StatusOK {
+			return model.Release{}, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+		}
+
+		fmt.Println(chunkUploadResponse)
+	}
+
+	fmt.Println("Chunk upload finished...")
+
+	var (
+		uploadFinishedURL = fmt.Sprintf("%s/upload/finished/%s?token=%s",
+			fileAssetsResponse.UploadDomain,
+			fileAssetsResponse.PackageAssetID,
+			fileAssetsResponse.URLEncodedToken)
+		finishedResponse interface{}
+	)
+
+	statusCode, err = api.Client.jsonRequest(http.MethodPost, uploadFinishedURL, nil, &finishedResponse)
+	if err != nil {
+		return model.Release{}, err
+	}
+
+	if statusCode != http.StatusOK {
+		return model.Release{}, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+	}
+
+	//patch release
+
+	var (
+		releasePatchURL = fmt.Sprintf("%s/v0.1/apps/%s/%s/uploads/releases/%s",
+			baseURL,
+			opts.App.Owner,
+			opts.App.AppName,
+			fileAssetsResponse.ReleaseID)
+		releaseBody = struct {
+			UploadStatus string `json:"upload_status"`
+		}{
+			UploadStatus: "uploadFinished",
+		}
+		releasePatchResponse interface{}
+	)
+
+	body, err := api.Client.MarshallContent(releaseBody)
+	if err != nil {
+		return model.Release{}, err
+	}
+
+	statusCode, err = api.Client.jsonRequest(http.MethodPatch, releasePatchURL, body, &releasePatchResponse)
+	if err != nil {
+		return model.Release{}, err
+	}
+
+	fmt.Println(releasePatchResponse)
+
+	if statusCode != http.StatusOK {
+		return model.Release{}, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+	}
+
+	uploadStatus := "commited"
+	releaseDistinctID := -1
+	for ok := true; ok; ok = uploadStatus != "readyToBePublished" {
+		var (
+			getURL = fmt.Sprintf("%s/v0.1/apps/%s/%s/uploads/releases/%s",
+				baseURL,
+				opts.App.Owner,
+				opts.App.AppName,
+				fileAssetsResponse.ReleaseID)
+			getResponse struct {
+				ID                string `json:"id"`
+				ReleaseDistinctID int    `json:"release_distinct_id,omitempty"`
+				UploadStatus      string `json:"upload_status"`
+			}
+		)
+
+		statusCode, err = api.Client.jsonRequest(http.MethodGet, getURL, nil, &getResponse)
+		if err != nil {
+			return model.Release{}, err
+		}
+
+		fmt.Println(getResponse)
+
+		if statusCode != http.StatusOK {
+			return model.Release{}, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+		}
+
+		uploadStatus = getResponse.UploadStatus
+
+		if uploadStatus == "readyToBePublished" {
+			releaseDistinctID = getResponse.ReleaseDistinctID
+		}
+	}
+
+	return api.GetReleaseOnAppByID(opts.App, releaseDistinctID)
 }
