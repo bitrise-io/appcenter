@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	maxAttempts = 100
+	maxAttempts     = 100
+	releaseFailedID = -1
 )
 
 type fileAssetResponse struct {
@@ -304,11 +305,11 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 
 	statusCode, err := api.Client.jsonRequest(http.MethodPost, assetsURL, nil, &assetResponse)
 	if err != nil {
-		return -1, err
+		return releaseFailedID, err
 	}
 
 	if statusCode != http.StatusCreated {
-		return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
+		return releaseFailedID, fmt.Errorf("invalid status code: %d, url: %s", statusCode, assetsURL)
 	}
 
 	fmt.Println("")
@@ -318,7 +319,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 	file := util.LocalFile{FilePath: opts.FilePath}
 	err = file.OpenFile()
 	if err != nil {
-		return -1, err
+		return releaseFailedID, err
 	}
 
 	fileName := file.FileName()
@@ -346,11 +347,11 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 
 	statusCode, err = api.Client.jsonRequest(http.MethodPost, metadataURL, nil, &metadataResponse)
 	if err != nil {
-		return -1, err
+		return releaseFailedID, err
 	}
 
 	if statusCode != http.StatusOK {
-		return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, metadataURL)
+		return releaseFailedID, fmt.Errorf("invalid status code: %d, url: %s", statusCode, metadataURL)
 	}
 
 	fmt.Println("")
@@ -365,7 +366,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 
 	err = api.uploadChunksParallelly(fileChunks, metadataResponse.ChunkList, assetResponse)
 	if err != nil {
-		return -1, err
+		return releaseFailedID, err
 	}
 
 	fmt.Println("")
@@ -381,11 +382,11 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 
 	statusCode, err = api.Client.jsonRequest(http.MethodPost, uploadFinishedURL, nil, &finishedResponse)
 	if err != nil {
-		return -1, err
+		return releaseFailedID, err
 	}
 
 	if statusCode != http.StatusOK {
-		return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, uploadFinishedURL)
+		return releaseFailedID, fmt.Errorf("invalid status code: %d, url: %s", statusCode, uploadFinishedURL)
 	}
 
 	fmt.Println("")
@@ -409,16 +410,16 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 
 	body, err := api.Client.MarshallContent(releaseBody)
 	if err != nil {
-		return -1, err
+		return releaseFailedID, err
 	}
 
 	statusCode, err = api.Client.jsonRequest(http.MethodPatch, releasePatchURL, body, &releasePatchResponse)
 	if err != nil {
-		return -1, err
+		return releaseFailedID, err
 	}
 
 	if statusCode != http.StatusOK {
-		return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, releasePatchURL)
+		return releaseFailedID, fmt.Errorf("invalid status code: %d, url: %s", statusCode, releasePatchURL)
 	}
 
 	fmt.Println("")
@@ -428,7 +429,7 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 	fmt.Println("Waiting for the AppCenter release to getting ready...")
 
 	uploadStatus := "commited"
-	releaseDistinctID := -1
+	releaseDistinctID := releaseFailedID
 	attempts := 1
 
 	for !maxAttemptsReached(attempts) {
@@ -449,21 +450,23 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 
 		statusCode, err = api.Client.jsonRequest(http.MethodGet, getURL, nil, &getResponse)
 		if err != nil {
-			return -1, err
+			return releaseFailedID, err
 		}
 
 		if statusCode != http.StatusOK {
-			return -1, fmt.Errorf("invalid status code: %d, url: %s", statusCode, getURL)
+			return releaseFailedID, fmt.Errorf("invalid status code: %d, url: %s", statusCode, getURL)
 		}
 
 		uploadStatus = getResponse.UploadStatus
 		uploadIsReady, err := uploadIsReadyForDeploy(uploadStatus)
 		if err != nil {
-			return -1, err
+			return releaseFailedID, err
 		}
 
 		if uploadIsReady {
 			releaseDistinctID = getResponse.ReleaseDistinctID
+
+			break
 		} else {
 			attempts++
 
