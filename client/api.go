@@ -14,6 +14,10 @@ import (
 	"github.com/bitrise-io/appcenter/model"
 )
 
+const (
+	maxAttempts = 100
+)
+
 type fileAssetResponse struct {
 	ReleaseID       string `json:"id"`
 	PackageAssetID  string `json:"package_asset_id"`
@@ -426,7 +430,8 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 	uploadStatus := "commited"
 	releaseDistinctID := -1
 	attempts := 1
-	for ok := true; ok; ok = !uploadIsReadyForDeploy(uploadStatus) {
+
+	for !maxAttemptsReached(attempts) {
 		fmt.Println(fmt.Sprintf("Attempt(s): %d", attempts))
 
 		var (
@@ -452,8 +457,12 @@ func (api API) CreateRelease(opts model.ReleaseOptions) (int, error) {
 		}
 
 		uploadStatus = getResponse.UploadStatus
+		uploadIsReady, err := uploadIsReadyForDeploy(uploadStatus)
+		if err != nil {
+			return -1, err
+		}
 
-		if uploadIsReadyForDeploy(uploadStatus) {
+		if uploadIsReady {
 			releaseDistinctID = getResponse.ReleaseDistinctID
 		} else {
 			attempts++
@@ -527,6 +536,23 @@ func generateRandomIntBetweenRange(min, max int) int {
 	return rand.Intn(max-min) + min
 }
 
-func uploadIsReadyForDeploy(status string) bool {
-	return status == "readyToBePublished"
+func uploadIsReadyForDeploy(status string) (bool, error) {
+	switch status {
+	case "readyToBePublished":
+		return true, nil
+	case "uploadStarted":
+		return false, nil
+	case "uploadFinished":
+		return false, nil
+	case "malwareDetected":
+		return false, fmt.Errorf("failed to fetch release status: %s", status)
+	case "error":
+		return false, fmt.Errorf("failed to fetch release status: %s", status)
+	default:
+		return false, fmt.Errorf("unknown status: %s", status)
+	}
+}
+
+func maxAttemptsReached(current int) bool {
+	return current >= maxAttempts
 }
