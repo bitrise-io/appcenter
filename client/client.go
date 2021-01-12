@@ -8,6 +8,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
+
+	"github.com/hashicorp/go-retryablehttp"
 )
 
 const (
@@ -31,17 +34,23 @@ func (rt roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // Client ...
 type Client struct {
-	httpClient *http.Client
+	httpClient *retryablehttp.Client
 }
 
 // NewClient returns an AppCenter authenticated client
 func NewClient(token string) Client {
+	retClient := retryablehttp.NewClient()
+
+	retClient.RetryMax = 5
+	retClient.RetryWaitMin = 5 * time.Second
+	retClient.RetryWaitMax = 10 * time.Second
+
+	retClient.HTTPClient.Transport = &roundTripper{
+		token: token,
+	}
+
 	return Client{
-		httpClient: &http.Client{
-			Transport: &roundTripper{
-				token: token,
-			},
-		},
+		httpClient: retClient,
 	}
 }
 
@@ -52,7 +61,7 @@ func (c Client) jsonRequest(method, url string, body []byte, response interface{
 		reader = bytes.NewReader(body)
 	}
 
-	req, err := http.NewRequest(method, url, reader)
+	req, err := retryablehttp.NewRequest(method, url, reader)
 
 	if err != nil {
 		return -1, err
@@ -98,7 +107,7 @@ func (c Client) uploadFile(url string, filePath string) (int, error) {
 		return -1, err
 	}
 
-	uploadReq, err := http.NewRequest("PUT", url, bytes.NewReader(fb))
+	uploadReq, err := retryablehttp.NewRequest("PUT", url, bytes.NewReader(fb))
 	if err != nil {
 		return -1, err
 	}
