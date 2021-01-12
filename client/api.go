@@ -34,9 +34,9 @@ type API struct {
 }
 
 // CreateAPIWithClientParams ...
-func CreateAPIWithClientParams(token string, debug bool) API {
+func CreateAPIWithClientParams(token string) API {
 	return API{
-		Client: NewClient(token, debug),
+		Client: NewClient(token),
 	}
 }
 

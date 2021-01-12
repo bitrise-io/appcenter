@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/http/httputil"
 	"strconv"
 )
 
@@ -33,18 +32,16 @@ func (rt roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 // Client ...
 type Client struct {
 	httpClient *http.Client
-	debug      bool
 }
 
 // NewClient returns an AppCenter authenticated client
-func NewClient(token string, debug bool) Client {
+func NewClient(token string) Client {
 	return Client{
 		httpClient: &http.Client{
 			Transport: &roundTripper{
 				token: token,
 			},
 		},
-		debug: debug,
 	}
 }
 
@@ -61,25 +58,9 @@ func (c Client) jsonRequest(method, url string, body []byte, response interface{
 		return -1, err
 	}
 
-	if c.debug {
-		b, err := httputil.DumpRequest(req, true)
-		if err != nil {
-			return -1, err
-		}
-		fmt.Println(string(b))
-	}
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return -1, err
-	}
-
-	if c.debug {
-		b, err := httputil.DumpResponse(resp, true)
-		if err != nil {
-			return -1, err
-		}
-		fmt.Println(string(b))
 	}
 
 	defer func() {
