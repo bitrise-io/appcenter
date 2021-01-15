@@ -40,6 +40,25 @@ func (a AppAPI) Groups(name string) (model.Group, error) {
 	return a.API.GetGroupByName(name, a.ReleaseOptions.App)
 }
 
+// All Groups...
+func (a App) AllGroups() ([]Group, error) {
+	var (
+		getURL      = fmt.Sprintf("%s/v0.1/apps/%s/%s/distribution_groups", baseURL, a.owner, a.name)
+		getResponse []Group
+	)
+
+	statusCode, err := a.client.jsonRequest(http.MethodGet, getURL, nil, &getResponse)
+	if err != nil {
+		return []Group{}, err
+	}
+
+	if statusCode != http.StatusOK {
+		return []Group{}, fmt.Errorf("invalid status code: %d, url: %s, body: %v", statusCode, getURL, getResponse)
+	}
+
+	return getResponse, nil
+}
+
 // Stores ...
 func (a AppAPI) Stores(name string) (model.Store, error) {
 	return a.API.GetStore(name, a.ReleaseOptions.App)
