@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/bitrise-io/go-utils/log"
 	"github.com/hashicorp/go-retryablehttp"
 )
 
@@ -54,6 +55,7 @@ func NewClient(token string) Client {
 
 		return ok, e
 	}
+	retClient.ErrorHandler = retryablehttp.PassthroughErrorHandler
 
 	retClient.HTTPClient.Transport = &roundTripper{
 		token: token,
@@ -84,8 +86,15 @@ func (c Client) jsonRequest(method, url string, body []byte, response interface{
 
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
+			log.Warnf("failed to close body: %s", err)
 		}
 	}()
+
+	if resp != nil {
+		if resp.Request.Header.Get("x-api-token") == "" {
+			log.Errorf("Authorization token missing from request.")
+		}
+	}
 
 	if response != nil {
 		rb, err := ioutil.ReadAll(resp.Body)
