@@ -4,13 +4,7 @@ default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 workflows:
   test:
     steps:
-    - git::https://github.com/bitrise-steplib/steps-check.git:
-        title: Lint
-        inputs:
-        - workflow: lint
-        - skip_step_yml_validation: "yes"
-    - go-list:
-        inputs:
-        - exclude: |-
-            */mocks
-    - go-test: { }
+    - go-list: {}
+    - golint: {}
+    - errcheck: {}
+    - go-test: {}
