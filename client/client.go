@@ -85,8 +85,10 @@ func (c Client) jsonRequest(method, url string, body []byte, response interface{
 	}
 
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Warnf("failed to close body: %s", err)
+		if resp != nil {
+			if err := resp.Body.Close(); err != nil {
+				log.Warnf("failed to close body: %s", err)
+			}
 		}
 	}()
 
@@ -96,7 +98,7 @@ func (c Client) jsonRequest(method, url string, body []byte, response interface{
 		}
 	}
 
-	if response != nil {
+	if resp != nil && response != nil {
 		rb, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return -1, err
