@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"strconv"
 
 	"github.com/bitrise-io/go-utils/log"
@@ -78,12 +78,6 @@ func (c Client) jsonRequest(method, url string, body []byte, response interface{
 		}
 	}()
 
-	reqDump, err := httputil.DumpRequestOut(resp.Request, true)
-	if err != nil {
-		log.Warnf("failed to dump request: %v", err)
-	}
-	log.Debugf("Request: %s", reqDump)
-
 	if resp != nil && response != nil {
 		rb, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -91,6 +85,11 @@ func (c Client) jsonRequest(method, url string, body []byte, response interface{
 		}
 
 		if err := json.Unmarshal(rb, response); err != nil {
+			reqDump, err := httputil.DumpRequestOut(resp.Request, true)
+			if err != nil {
+				log.Warnf("failed to dump request: %v", err)
+			}
+
 			respDump, err := httputil.DumpResponse(resp, false)
 			if err != nil {
 				log.TWarnf("failed to dump response: %s", err)
@@ -114,7 +113,7 @@ func (c Client) MarshallContent(content interface{}) ([]byte, error) {
 }
 
 func (c Client) uploadFile(url string, filePath string) (int, error) {
-	fb, err := ioutil.ReadFile(filePath)
+	fb, err := os.ReadFile(filePath)
 	if err != nil {
 		return -1, err
 	}
@@ -134,6 +133,7 @@ func (c Client) uploadFile(url string, filePath string) (int, error) {
 
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
+			log.Warnf("failed to close body: %s", err)
 		}
 	}()
 
