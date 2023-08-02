@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strconv"
-	"time"
 
 	"github.com/bitrise-io/go-utils/log"
+	"github.com/bitrise-io/go-utils/retry"
 	"github.com/hashicorp/go-retryablehttp"
 )
 
@@ -31,6 +31,7 @@ func (rt roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Set(
 		"content-type", "application/json; charset=utf-8",
 	)
+
 	return http.DefaultTransport.RoundTrip(req)
 }
 
@@ -41,15 +42,7 @@ type Client struct {
 
 // NewClient returns an AppCenter authenticated client
 func NewClient(token string) Client {
-	retClient := retryablehttp.NewClient()
-
-	retClient.RetryMax = 5
-	retClient.RetryWaitMin = 5 * time.Second
-	retClient.RetryWaitMax = 10 * time.Second
-
-	retClient.CheckRetry = retryablehttp.DefaultRetryPolicy
-	retClient.ErrorHandler = retryablehttp.PassthroughErrorHandler
-
+	retClient := retry.NewHTTPClient()
 	retClient.HTTPClient.Transport = &roundTripper{
 		token: token,
 	}
@@ -84,12 +77,6 @@ func (c Client) jsonRequest(method, url string, body []byte, response interface{
 			}
 		}
 	}()
-
-	if resp != nil {
-		if resp.Request.Header.Get("x-api-token") == "" {
-			log.Errorf("Authorization token missing from request.")
-		}
-	}
 
 	reqDump, err := httputil.DumpRequestOut(resp.Request, true)
 	if err != nil {
