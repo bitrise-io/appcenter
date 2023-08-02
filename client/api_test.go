@@ -19,8 +19,12 @@ func TestCreateAPIWithClientParams(t *testing.T) {
 			return
 		}
 
-		token := r.Header.Get("x-api-token")
-		if token != authToken {
+		tokenValues := r.Header.Values("x-api-token")
+		if len(tokenValues) != 1 {
+			w.WriteHeader(401)
+			return
+		}
+		if tokenValues[0] != authToken {
 			w.WriteHeader(401)
 			return
 		}

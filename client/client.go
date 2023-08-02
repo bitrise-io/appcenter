@@ -26,10 +26,10 @@ type roundTripper struct {
 
 // RoundTrip ...
 func (rt roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.Header.Add(
+	req.Header.Set(
 		"x-api-token", rt.token,
 	)
-	req.Header.Add(
+	req.Header.Set(
 		"content-type", "application/json; charset=utf-8",
 	)
 	return http.DefaultTransport.RoundTrip(req)
