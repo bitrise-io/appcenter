@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -48,14 +47,7 @@ func NewClient(token string) Client {
 	retClient.RetryWaitMin = 5 * time.Second
 	retClient.RetryWaitMax = 10 * time.Second
 
-	retClient.CheckRetry = func(ctx context.Context, resp *http.Response, err error) (bool, error) {
-		ok, e := retryablehttp.DefaultRetryPolicy(ctx, resp, err)
-		if !ok && resp.StatusCode == http.StatusUnauthorized {
-			return true, e
-		}
-
-		return ok, e
-	}
+	retClient.CheckRetry = retryablehttp.DefaultRetryPolicy
 	retClient.ErrorHandler = retryablehttp.PassthroughErrorHandler
 
 	retClient.HTTPClient.Transport = &roundTripper{
