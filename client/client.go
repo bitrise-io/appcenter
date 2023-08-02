@@ -101,28 +101,23 @@ func (c Client) jsonRequest(method, url string, body []byte, response interface{
 
 	reqDump, err := httputil.DumpRequestOut(resp.Request, true)
 	if err != nil {
-		log.TWarnf("failed to dump request: %v", err)
+		log.Warnf("failed to dump request: %v", err)
 	}
-	log.TInfof("Request: %s", reqDump)
-
-	dumpBody := false
-	if resp.StatusCode >= 300 || resp.StatusCode < 200 {
-		dumpBody = true
-	}
-	respDump, err := httputil.DumpResponse(resp, dumpBody)
-	if err != nil {
-		log.TWarnf("failed to dump response: %s", err)
-	}
-	log.Infof("Response: %s", respDump)
+	log.Debugf("Request: %s", reqDump)
 
 	if resp != nil && response != nil {
-		rb, err := ioutil.ReadAll(resp.Body)
+		rb, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return -1, err
 		}
 
 		if err := json.Unmarshal(rb, response); err != nil {
-			return resp.StatusCode, fmt.Errorf("error: %s, response: %s", err, string(rb))
+			respDump, err := httputil.DumpResponse(resp, false)
+			if err != nil {
+				log.TWarnf("failed to dump response: %s", err)
+			}
+
+			return resp.StatusCode, fmt.Errorf("failed to unmarshal response: %s, request: %s, response headers: %s response body: %s", err, reqDump, respDump, string(rb))
 		}
 	}
 
